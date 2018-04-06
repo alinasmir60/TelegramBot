@@ -13,13 +13,18 @@ file.close()
 
 
 def start(bot, update, user_data):
-    user_data["lang"] = "ru-en"
+    user_data["lang"] = lang_ru
     update.message.reply_text("Привет! Этот бот своеобразная игра-обучалка по английскому языку. Вы можете выбрать одну"
                               " из тем с помощью команд, которые будут описаны ниже.", reply_markup=markup_start)
-    update.message.reply_text("Список команд, которые вы можете использовать: \n/Опрос - бот будет писать вам слово и "
-                              "предлагать выбрать правильный перевод. Если допущена ошибка, вам будет предложено "
-                              "выбрать вновь или узнать правильный ответ.\nТакже присутствует перевод русско-английский"
-                              " и англо-русский. Для этого нужно вызвать команду '/Переводчик {текст для перевода}'")
+    update.message.reply_text("Список команд, которые вы можете использовать: "
+                              "\n1) /quiz - бот будет писать вам слово и предлагать выбрать правильный перевод. "
+                              "Если допущена ошибка, вам будет предложено выбрать вновь или узнать правильный ответ."
+                              "\n2) /irr_verbs - это тест на знание неправильных глаголов. "
+                              "Бот называет глагол, а вы должны выбрать правильное написание"
+                              "\n\nТакже присутствует перевод русско-английский и англо-русский. "
+                              "Для этого нужно вызвать команду /translater. Изначально Переводчик настроен на "
+                              "русско-английский перевод, но вы можете самостоятельно изменить направление с "
+                              "помощью команд /en_ru (англо-русский) и /ru_en (русско-английский)")
     update.message.reply_text("Переведено сервисом «Яндекс.Переводчик» http://translate.yandex.ru/.")
 
 
@@ -53,6 +58,7 @@ def quiz(bot, update, user_data):
 
 
 def irregular_verbs(bot, update, user_data):
+    update.message.reply_text("Вы выбрали тест по неправильным глаголам")
     user_data["func"] = "verbs"
 
     choice_word, trans_word = choose_word(user_data["func"])
@@ -60,40 +66,39 @@ def irregular_verbs(bot, update, user_data):
     reply_keyboard = [[i for i in trans_word], ["/stop"]]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
-    user_data["true_answ"] = choice_word, trans_word[0]
+    user_data["true_answ"] = choice_word, trans_word[1]
     user_data["false_answ"] = trans_word[1:]
     user_data["keyboard"] = markup
 
     update.message.reply_text(choice_word, reply_markup=markup)
-    update.message.reply_text("Вы выбрали тест по неправильным глаголам")
 
 
 def translater(bot, update, user_data):
     user_data["func"] = "translate"
 
     # клавиатура для переводчика
-    reply_keyboard_transl = [["/en_ru", "/ru_en"], ["/Опрос", "/stop"]]
+    reply_keyboard_transl = [["/en_ru", "/ru_en"], ["/quiz", "/stop"]]
 
     update.message.reply_text("Вы активировали переводчик.\nВы можете выбрать язык перевода.",
                               reply_markup=ReplyKeyboardMarkup(reply_keyboard_transl))
 
 
 def answer(bot, update, user_data):
-    answ = update.message.text
+    answ = update.message.text.lower()
 
     # клавиатура при правильном ответе
-    reply_keyboard_true = [["/Опрос"], ["/irr", "/Переводчик", "/stop"]]
+    reply_keyboard_true = [["/quiz", "/irr_verbs"], ["/translater", "/stop"]]
 
     # клавиатура при неправильном ответе
-    reply_keyboard_false = [["Повторить попытку", "Правильный ответ"], ["/irr", "/Переводчик", "/stop"]]
+    reply_keyboard_false = [["Повторить попытку", "Правильный ответ"], ["/quiz", "/irr_verbs", "/translater", "/stop"]]
 
-    if user_data["func"] == "quiz":
+    if user_data["func"] == "quiz" or user_data["func"] == "verbs":
         if answ == user_data["true_answ"][1]:
-            update.message.reply_text("Правильно!", reply_markup=ReplyKeyboardMarkup(reply_keyboard_true))
-        elif answ == "Правильный ответ":
+            update.message.reply_text("правильно!", reply_markup=ReplyKeyboardMarkup(reply_keyboard_true))
+        elif answ == "правильный ответ":
             update.message.reply_text("{}: {}".format(answ, user_data["true_answ"][1]),
                                       reply_markup=ReplyKeyboardMarkup(reply_keyboard_true))
-        elif answ == "Повторить попытку":
+        elif answ == "повторить попытку":
             update.message.reply_text("Вы решили повторить попытку.")
             update.message.reply_text(user_data["true_answ"][0], reply_markup=user_data["keyboard"])
         elif answ != user_data["true_answ"] and answ in user_data["false_answ"]:
@@ -105,19 +110,21 @@ def answer(bot, update, user_data):
 
 
 def en_ru(bot, update, user_data):
-    update.message.reply_text("Язык перевода: Английский - Русский")
-    user_data["lang"] = "en-ru"
+    if user_data["func"] == "translater":
+        update.message.reply_text("Язык перевода: Английский - Русский")
+        user_data["lang"] = lang_en
 
 
 def ru_en(bot, update, user_data):
-    update.message.reply_text("Язык перевода: Русский - Английский")
-    user_data["lang"] = "ru-en"
+    if user_data["func"] == "translater":
+        update.message.reply_text("Язык перевода: Русский - Английский")
+        user_data["lang"] = lang_ru
 
 
 def choose_word(func):
     if func == "quiz":
         choice_word = random.choice(word)
-        trans_word = [translater_word(choice_word, "ru-en")]
+        trans_word = [translater_word(choice_word, lang_ru)]
         while len(trans_word) <= 2:
             w = random.choice(translat)
             if w not in trans_word:
@@ -125,7 +132,7 @@ def choose_word(func):
         return choice_word, trans_word
     elif func == "verbs":
         choice_word = random.choice(list(irr_verbs.keys()))
-        trans_word = [irr_verbs[choice_word], translater_word(choice_word, "ru-en")]
+        trans_word = [irr_verbs[choice_word], translater_word(choice_word, lang_ru)]
         return choice_word, trans_word
 
 
@@ -134,12 +141,15 @@ def translater_word(text, lang):
     response = requests.get(
         translator_uri,
         params={
-            "key": "trnsl.1.1.20180401T224213Z.c1143abeda1b8ddf.366d17dd4a20cb2ccc211c86c4bb1ec637a175de",
+            "key": "",
             "lang": lang,
             "text": text
         })
     return response.json()["text"][0]
 
+
+lang_ru = "ru-en"
+lang_en = "en-ru"
 
 word = string.split(", ")
 translat = [translater_word(i, "ru-en") for i in word]
@@ -151,21 +161,21 @@ for i in verbs:
 
 
 #стандартная клавиатура
-reply_keyboard_start = [['/Опрос', '/Переводчик'], ["/stop"]]
+reply_keyboard_start = [["/quiz", "/irr_verbs", "/translater"], ["/stop"]]
 markup_start = ReplyKeyboardMarkup(reply_keyboard_start, one_time_keyboard=False)
 
 
 def main():
-    updater = Updater("579972815:AAGbvmvV4Ukoo5wIg19T_9GKVsVW1_e-UnI")
+    updater = Updater("")
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start, pass_user_data=True))
     dp.add_handler(CommandHandler("help", help))
-    dp.add_handler(CommandHandler("Опрос", quiz, pass_user_data=True))
-    dp.add_handler(CommandHandler("Переводчик", translater, pass_user_data=True))
+    dp.add_handler(CommandHandler("quiz", quiz, pass_user_data=True))
+    dp.add_handler(CommandHandler("translater", translater, pass_user_data=True))
     dp.add_handler(CommandHandler("en_ru", en_ru, pass_user_data=True))
     dp.add_handler(CommandHandler("ru_en", ru_en, pass_user_data=True))
-    dp.add_handler(CommandHandler("irr", irregular_verbs, pass_user_data=True))
+    dp.add_handler(CommandHandler("irr_verbs", irregular_verbs, pass_user_data=True))
     dp.add_handler(CommandHandler("stop", stop))
     dp.add_handler(MessageHandler(Filters.text, answer, pass_user_data=True))
 
